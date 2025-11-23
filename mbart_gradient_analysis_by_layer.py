@@ -29,6 +29,9 @@ device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
 model = model.to(device)
 
+def model_name_predicate(name):
+    return not("_norm" in name) and not("model.shared" in name) and not("embedding" in name)
+
 def load_parallel_data(source_file, target_file, num_lines):
     """Load parallel text files and clean them"""
     with open(source_file, 'r', encoding='utf-8') as f:
@@ -51,7 +54,7 @@ print(f"Loaded {len(source_lines)} parallel sentences")
 # Initialize gradient accumulation dictionary
 accumulated_grads = {}
 for name, param in model.named_parameters():
-    if param.requires_grad:
+    if param.requires_grad and model_name_predicate(name):
         accumulated_grads[name] = torch.zeros_like(param.data).cpu()
 
 # Enable training mode
@@ -106,8 +109,11 @@ for batch_idx in tqdm(range(num_batches)):
     
     # Accumulate gradients
     for name, param in model.named_parameters():
-        if param.grad is not None:
-            accumulated_grads[name] += param.grad.data.cpu()
+        if model_name_predicate(name):
+            if (param.grad is not None):
+                accumulated_grads[name] += param.grad.data.cpu()
+            else:
+                print(f"{name} grad is None")
     
     # Clear gradients for next batch
     model.zero_grad()
@@ -133,17 +139,18 @@ for name, param in model.named_parameters():
         param_size = reduce(lambda a, b: a * b, avg_grad.shape, 1)
         grad_norm_squared = (avg_grad.norm().item() ** 2) #* param_size
         
-        # Extract module name (remove .weight or .bias suffix)
-        if name.endswith('.weight') or name.endswith('.bias'):
-            module_name = name.rsplit('.', 1)[0]
-        else:
-            module_name = name
+        if model_name_predicate(name):
+            # Extract module name (remove .weight or .bias suffix)
+            if name.endswith('.weight') or name.endswith('.bias'):
+                module_name = name.rsplit('.', 1)[0]
+            else:
+                module_name = name
         
-        # Accumulate for this module
-        module_names.append(module_name)
-        module_grads[module_name]['params'].update({name: avg_grad.shape})
-        module_grads[module_name]['total_norm'] += grad_norm_squared
-        module_grads[module_name]['total_params'] += param_size
+            # Accumulate for this module
+            module_names.append(module_name)
+            module_grads[module_name]['params'].update({name: avg_grad.shape})
+            module_grads[module_name]['total_norm'] += grad_norm_squared
+            module_grads[module_name]['total_params'] += param_size
 
 # Sort by gradient norm (descending)
 def get_gradient_norm_per_param(key):
@@ -164,7 +171,7 @@ one_dim_layers = []
 
 for key in module_names:
     # Calculate trainable params for LoRA configuration
-    if key != "model.shared":
+    if model_name_predicate(key):
         params = module_grads[key]['params']
         is_lora = False
         print(f"layer: {key} has gradient norm per parameter: {get_gradient_norm_per_param(key)}")
