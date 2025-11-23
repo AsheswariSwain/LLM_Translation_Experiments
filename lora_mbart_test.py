@@ -1,29 +1,40 @@
+# ========== File Paths ========== #
+source_datatset = "WikiMatrix"
+target_dataset = "WikiMatrix"
+LOCATION = f"/Users/foopanda/en-hi.txt/{target_dataset}.en-hi"
+checkpoint = None#"checkpoint-2000"
+SRC_FILE = f"{LOCATION}.en"
+TGT_FILE =f"{LOCATION}.hi"
+
+
 import os
 from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
 import sacrebleu
 import evaluate
 from comet import download_model, load_from_checkpoint
 import torch
+import pytorch_lightning as ptl
+import numpy as np
 from peft import PeftModel
+import warnings
 
-# ========== File Paths ========== #
-LOCATION = "/Users/foopanda/en-hi.txt/Ubuntu.en-hi"
-SRC_FILE = f"{LOCATION}.en"
-TGT_FILE =f"{LOCATION}.hi"
-
-OUT_FILE = r"/Users/foopanda/predictions.hi"
 
 # ========== Load mBART Model ========== #
 model_name = "facebook/mbart-large-50-many-to-many-mmt"
 src_lang_code = "en_XX"
 tgt_lang_code = "hi_IN"
-def get_tokenizer(model_name):
-    tokenizer = MBart50TokenizerFast.from_pretrained(model_name)
-    tokenizer.src_lang = src_lang_code
-    return tokenizer
-model = MBartForConditionalGeneration.from_pretrained(model_name)
+
+tokenizer = MBart50TokenizerFast.from_pretrained(model_name)
+tokenizer.src_lang = src_lang_code
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = model.to(device)
+
+def get_base_model(model_name):
+    model = MBartForConditionalGeneration.from_pretrained(model_name,
+        torch_dtype=torch.float16,  # Use fp16 for efficiency
+        device_map="auto")
+    model = model.to(device)
+    return model
 
 # ========== Read First 500 Lines ========== #
 with open(SRC_FILE, "r", encoding="utf-8") as f:
@@ -32,71 +43,97 @@ with open(SRC_FILE, "r", encoding="utf-8") as f:
 with open(TGT_FILE, "r", encoding="utf-8") as f:
     refs = [line.strip() for line in f.readlines()]
 
-test_size = 500
-src_sentences = src_sentences[-1*test_size:]
-refs = refs[-1*test_size:]
+test_size = 504
+src_sentences = src_sentences[:test_size]
+refs = refs[:test_size]
 
 
+def get_lora_model(model_name, adapter):
+    lora_model = PeftModel.from_pretrained(get_base_model(model_name), lora_adapter)
+    print(f"Before merge: {type(lora_model).__name__}")
+    lora_model = lora_model.merge_and_unload()  # Merges LoRA into base model
+    print(f"After merge: {type(lora_model).__name__}")
+    lora_model.eval()
+    return lora_model
+
+import time 
 def translate_and_evaluate(model, tokenizer, src_sentences, refs, name):
-    # ========== Translate ========== #
+    OUT_FILE = f"/Users/foopanda/predictions_{name}.hi"
     preds = []
     batch_size = 8
     print(f"Translating using {name}...")
+    
+    total_generate_time = 0
+    total_tokens_generated = 0
 
     for i in range(0, len(src_sentences), batch_size):
         batch = src_sentences[i:i+batch_size]
-        inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-        outputs = model.generate(
-            **inputs,
-            max_length=512,
-            forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang_code]
-        )
+        inputs = tokenizer(batch, 
+            return_tensors="pt", 
+            padding=True, 
+            truncation=True, 
+            max_length=128).to(device)
+
+
+        start = time.time()
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_length=128,
+                forced_bos_token_id=tokenizer.lang_code_to_id[tgt_lang_code]
+            )
+        generate_time = time.time() - start
+        total_generate_time += generate_time
+        
+        # CHECK OUTPUT LENGTHS
+        output_lengths = [len(seq) for seq in outputs]
+        avg_length = sum(output_lengths) / len(output_lengths)
+        total_tokens_generated += sum(output_lengths)
+        
         decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
         preds.extend(decoded)
-        #print(decoded)
-        print(f"Translated {i + len(batch)}/{len(src_sentences)}")
-
-    # ========== Save Predictions ========== #
+        
+        print(f"Batch {i//batch_size + 1}: generate={generate_time:.2f}s, avg_tokens={avg_length:.1f}, max_tokens={max(output_lengths)}")
+        
+        # PRINT FIRST FEW TRANSLATIONS TO SEE IF THEY MAKE SENSE
+        if i == 0:
+            print("\nSample translations from first batch:")
+            for j in range(min(2, len(decoded))):
+                print(f"  SRC: {batch[j][:100]}...")
+                print(f"  TGT: {decoded[j][:100]}...")
+                print(f"  Tokens: {output_lengths[j]}")
+    
+    print(f"\nTotal tokens generated: {total_tokens_generated}")
+    print(f"Avg tokens per sentence: {total_tokens_generated / len(src_sentences):.1f}")
+    # ... rest of code
+    
+    print(f"\n=== Timing Summary for {name} ===")
+    print(f"Total generation: {total_generate_time:.2f}s")
+    
+    # Save predictions
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         for line in preds:
             f.write(line + "\n")
-
-    # ========== Evaluation ========== #
-    print("\n=== Evaluation Results (English → Hindi, Last 500 Lines) ===")
-
-    # BLEU
+    
+    # Evaluation
+    print("\n=== Evaluation Results ===")
     bleu = sacrebleu.corpus_bleu(preds, [refs])
     print(f"BLEU for {name}: {round(bleu.score, 2)}")
-
-    # ROUGE-L
+    
     rouge = evaluate.load("rouge")
     rouge_result = rouge.compute(predictions=preds, references=refs)
     print(f"ROUGE-L for {name}: {round(rouge_result['rougeL'], 4)}")
-
-    # METEOR
+    
     meteor = evaluate.load("meteor")
     meteor_result = meteor.compute(predictions=preds, references=refs)
     print(f"METEOR for {name}: {round(meteor_result['meteor'], 4)}")
-
-    # CHRF
+    
     chrf = evaluate.load("chrf")
     chrf_result = chrf.compute(predictions=preds, references=refs)
     print(f"CHRF for {name}: {round(chrf_result['score'], 4)}")
 
 
-#translate_and_evaluate(model, get_tokenizer(model_name), src_sentences, refs, "original")
-lora_adapter = './mbart-lora-finetuned/checkpoint-10000'
-#lora_adapter = f"./mbart-ubuntu-{src_lang_code}-{tgt_lang_code}-adapter"
-translate_and_evaluate(PeftModel.from_pretrained(model, lora_adapter), 
-    get_tokenizer(lora_adapter), 
-    src_sentences, refs, "fine-tuned")
+#translate_and_evaluate(get_base_model(model_name), tokenizer, src_sentences, refs, "original")
+lora_adapter = f"./mbart-lora-{source_datatset}-{src_lang_code}-{tgt_lang_code}" if checkpoint is None else f"./mbart-lora-{source_datatset}-{src_lang_code}-{tgt_lang_code}/{checkpoint}"
+translate_and_evaluate(get_lora_model(model_name, lora_adapter), tokenizer, src_sentences, refs, "fine-tuned")
 
-# COMET
-# print("Running COMET evaluation...")
-# comet_model_path = download_model("Unbabel/wmt22-comet-da")
-# comet_model = load_from_checkpoint(comet_model_path)
-# comet_data = [{"src": s, "mt": t, "ref": r} for s, t, r in zip(src_sentences, preds, refs)]
-# comet_result = comet_model.predict(comet_data, batch_size=8, gpus=1 if torch.cuda.is_available() else 0)
-
-# comet_key = "system_score" if "system_score" in comet_result else "mean_score"
-# print(f"COMET: {round(comet_result[comet_key], 4)}")
