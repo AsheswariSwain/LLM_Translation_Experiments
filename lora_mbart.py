@@ -4,8 +4,15 @@ SRC_FILE = f"{LOCATION}.en"
 TGT_FILE =f"{LOCATION}.hi"
 source_lang = "en_XX"
 target_lang = "hi_IN"
+dataset_cap = 20000
+valid_size = 504
+
+warmup_percent = 0.05
+num_saves = 6
 
 import torch
+import re
+from math import sqrt
 from transformers import (
     MBartForConditionalGeneration,
     MBart50TokenizerFast,
@@ -16,7 +23,7 @@ from transformers import (
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 from datasets import Dataset, DatasetDict
 
-adapter_location = None
+adapter_location = None# f"./mbart-lora-{adapter_name}-{source_lang}-{target_lang}/checkpoint-2000"
 
 model_name = "facebook/mbart-large-50-many-to-many-mmt"
 base_model = MBartForConditionalGeneration.from_pretrained(
@@ -34,48 +41,87 @@ def load_parallel_data(source_file, target_file):
         target_lines = [line.strip() for line in f.readlines() if line.strip()]
     
     # Ensure same length
-    min_length = min(len(source_lines), len(target_lines))
+    min_length = min(dataset_cap+valid_size, min(len(source_lines), len(target_lines)))
     source_lines = source_lines[:min_length]
     target_lines = target_lines[:min_length]
     
     return source_lines, target_lines
 
-def create_dataset(source_file, target_file, train_split=0.95):
+def create_dataset(source_file, target_file):
     """Create train/validation/test splits"""
     source, target = load_parallel_data(source_file, target_file)
-    
-    total = len(source)
-    train_size = int(total * train_split)
-    
+
     # Create dataset dictionary
     dataset_dict = DatasetDict({
         'train': Dataset.from_dict({
-            'source': source[:train_size],
-            'target': target[:train_size]
+            'source': source[valid_size:],
+            'target': target[valid_size:]
         }),
         'validation': Dataset.from_dict({
-            'source': source[train_size:],
-            'target': target[train_size:]
+            'source': source[:valid_size],
+            'target': target[:valid_size]
         })
     })
     
     return dataset_dict
 
 
+def get_lora_config(decoder_finetune, grad_based_layer):
+    if (grad_based_layer):
+        lora_layers = ["model.decoder.layers.0.self_attn.v_proj", "model.decoder.layers.0.self_attn.v_proj", "model.decoder.layers.0.self_attn.out_proj", "model.decoder.layers.0.self_attn.out_proj", "model.decoder.layers.2.self_attn.v_proj"]
+        #lora_layers = ["model.decoder.layers.0.self_attn.v_proj.weight", "model.decoder.layers.0.self_attn.out_proj.weight", "model.decoder.layers.11.self_attn.k_proj.weight", "model.decoder.layers.2.self_attn.v_proj.weight", "model.decoder.layers.11.self_attn.v_proj.weight", "model.decoder.layers.0.encoder_attn.v_proj.weight", "model.decoder.layers.1.self_attn.v_proj.weight", "model.decoder.layers.0.encoder_attn.out_proj.weight", "model.decoder.layers.9.self_attn.v_proj.weight", "model.decoder.layers.9.self_attn.out_proj.weight", "model.decoder.layers.4.self_attn.v_proj.weight", "model.decoder.layers.5.self_attn.v_proj.weight", "model.decoder.layers.3.self_attn.v_proj.weight", "model.decoder.layers.11.self_attn.out_proj.weight", "model.decoder.layers.1.self_attn.out_proj.weight", "model.decoder.layers.0.fc2.weight", "model.decoder.layers.10.self_attn.v_proj.weight", "model.decoder.layers.2.self_attn.out_proj.weight", "model.decoder.layers.10.self_attn.out_proj.weight", "model.decoder.layers.0.self_attn.q_proj.weight", "model.decoder.layers.6.self_attn.v_proj.weight", "model.decoder.layers.8.self_attn.v_proj.weight", "model.decoder.layers.7.self_attn.v_proj.weight", "model.decoder.layers.5.self_attn.out_proj.weight", "model.decoder.layers.1.encoder_attn.v_proj.weight", "model.decoder.layers.4.self_attn.out_proj.weight", "model.decoder.layers.0.fc1.weight", "model.decoder.layers.0.self_attn.k_proj.weight", "model.decoder.layers.1.fc2.weight", "model.decoder.layers.8.self_attn.out_proj.weight", "model.decoder.layers.6.self_attn.out_proj.weight", "model.decoder.layers.2.encoder_attn.v_proj.weight", "model.decoder.layers.2.self_attn.q_proj.weight", "model.decoder.layers.7.self_attn.out_proj.weight", "model.decoder.layers.2.self_attn.k_proj.weight", "model.decoder.layers.1.fc1.weight", "model.decoder.layers.11.fc1.weight", "model.decoder.layers.3.self_attn.q_proj.weight", "model.decoder.layers.4.self_attn.q_proj.weight", "model.decoder.layers.8.self_attn.q_proj.weight", "model.decoder.layers.1.encoder_attn.out_proj.weight", "model.decoder.layers.5.self_attn.k_proj.weight", "model.decoder.layers.3.self_attn.out_proj.weight", "model.decoder.layers.8.self_attn.k_proj.weight", "model.decoder.layers.3.encoder_attn.v_proj.weight", "model.decoder.layers.2.fc2.weight", "model.decoder.layers.4.encoder_attn.v_proj.weight", "model.decoder.layers.3.fc2.weight", "model.decoder.layers.0.encoder_attn.q_proj.weight", "model.decoder.layers.7.self_attn.k_proj.weight", "model.decoder.layers.6.encoder_attn.v_proj.weight", "model.decoder.layers.7.self_attn.q_proj.weight", "model.decoder.layers.5.self_attn.q_proj.weight", "model.decoder.layers.9.self_attn.q_proj.weight", "model.decoder.layers.3.self_attn.k_proj.weight", "model.decoder.layers.5.fc2.weight", "model.decoder.layers.4.self_attn.k_proj.weight", "model.decoder.layers.0.encoder_attn.k_proj.weight", "model.decoder.layers.6.self_attn.q_proj.weight", "model.decoder.layers.6.self_attn.k_proj.weight", "model.decoder.layers.4.fc2.weight", "model.decoder.layers.2.fc1.weight", "model.decoder.layers.9.self_attn.k_proj.weight", "model.decoder.layers.6.fc2.weight", "model.decoder.layers.10.encoder_attn.v_proj.weight", "model.decoder.layers.11.fc2.weight", "model.decoder.layers.7.fc2.weight", "model.decoder.layers.11.self_attn.q_proj.weight", "model.decoder.layers.5.encoder_attn.v_proj.weight", "model.decoder.layers.3.fc1.weight", "model.decoder.layers.8.fc2.weight", "model.decoder.layers.8.fc1.weight", "model.decoder.layers.2.encoder_attn.out_proj.weight", "model.decoder.layers.4.fc1.weight", "model.decoder.layers.5.fc1.weight", "model.encoder.layers.11.self_attn.v_proj.weight", "model.decoder.layers.7.fc1.weight", "model.decoder.layers.6.fc1.weight", "model.decoder.layers.3.encoder_attn.out_proj.weight", "model.decoder.layers.11.encoder_attn.v_proj.weight", "model.decoder.layers.2.encoder_attn.q_proj.weight", "model.encoder.layers.9.self_attn.v_proj.weight", "model.decoder.layers.10.self_attn.q_proj.weight", "model.decoder.layers.9.fc1.weight", "model.decoder.layers.4.encoder_attn.out_proj.weight", "model.decoder.layers.10.fc1.weight", "model.decoder.layers.1.self_attn.k_proj.weight", "model.encoder.layers.10.self_attn.v_proj.weight", "model.decoder.layers.1.self_attn.q_proj.weight", "model.decoder.layers.10.self_attn.k_proj.weight", "model.decoder.layers.9.fc2.weight", "model.decoder.layers.10.fc2.weight", "model.decoder.layers.9.encoder_attn.v_proj.weight", "model.decoder.layers.8.encoder_attn.v_proj.weight", "model.decoder.layers.7.encoder_attn.v_proj.weight", "model.decoder.layers.3.encoder_attn.q_proj.weight", "model.decoder.layers.1.encoder_attn.q_proj.weight", "model.decoder.layers.2.encoder_attn.k_proj.weight", "model.decoder.layers.10.encoder_attn.out_proj.weight", "model.decoder.layers.9.encoder_attn.out_proj.weight", "model.decoder.layers.4.encoder_attn.q_proj.weight", "model.decoder.layers.8.encoder_attn.out_proj.weight", "model.decoder.layers.5.encoder_attn.out_proj.weight", "model.decoder.layers.6.encoder_attn.out_proj.weight", "model.decoder.embed_positions.weight", "model.encoder.layers.8.self_attn.v_proj.weight"]
+        return LoraConfig(
+            r=16,
+            lora_alpha=32,
+            target_modules=lora_layers,
+            modules_to_save=["layer_norm", "final_layer_norm", "self_attn_layer_norm"],
+            lora_dropout=0.05,
+            bias="none",
+            task_type=TaskType.SEQ_2_SEQ_LM
+        )
+    elif (decoder_finetune):
+        target_regex = [
+            # Decoder self-attention (target fluency)
+            r"decoder\.layers\.\d+\.self_attn\.(q_proj|k_proj|v_proj|out_proj)",
+            
+            # Cross-attention (source-target alignment)
+            r"decoder\.layers\.\d+\.encoder_attn\.(q_proj|k_proj|v_proj|out_proj)",
+            r"decoder\.layers.*.(fc1|fc2)"
+        ]
+        matched_module_name = []
+        import re
+
+        for name, module in base_model.named_modules():
+            for pattern in target_regex:
+                if re.search(pattern, name):
+                    print(name)
+                    matched_module_name.append(name)
+                    break
+        return LoraConfig(
+            r=16,
+            lora_alpha=32,
+            target_modules=matched_module_name,
+            lora_dropout=0.05,
+            bias="none",
+            task_type=TaskType.SEQ_2_SEQ_LM
+        )
+    else:
+        return LoraConfig(
+            r=16,  # Rank of the low-rank matrices
+            lora_alpha=32,  # Scaling factor
+            target_modules=["q_proj", "v_proj", "k_proj", "out_proj", 
+                            "fc1", "fc2"],  # Which layers to apply LoRA to
+            lora_dropout=0.05,
+            bias="none",
+            task_type=TaskType.SEQ_2_SEQ_LM
+        )
+
+
 def get_fresh_tunable_model():
     # 1. Load model and tokenizer
     tokenizer = MBart50TokenizerFast.from_pretrained(model_name)
 
-    # 2. Configure LoRA
-    lora_config = LoraConfig(
-        r=16,  # Rank of the low-rank matrices
-        lora_alpha=32,  # Scaling factor
-        target_modules=["q_proj", "v_proj", "k_proj", "out_proj", 
-                        "fc1", "fc2"],  # Which layers to apply LoRA to
-        lora_dropout=0.05,
-        bias="none",
-        task_type=TaskType.SEQ_2_SEQ_LM
-    )
+    lora_config = get_lora_config(True, True)
 
     # 3. Apply LoRA to the model
     model = get_peft_model(base_model, lora_config)
@@ -110,11 +156,11 @@ def preprocess_function(examples):
         examples["source"],
         max_length=128,
         truncation=True,
-        padding="max_length"
+        #padding="max_length"
     )
     
     # Set target language for labels
-    #tokenizer.tgt_lang = target_lang
+    tokenizer.tgt_lang = target_lang
     
     # Tokenize targets
     with tokenizer.as_target_tokenizer():
@@ -122,7 +168,7 @@ def preprocess_function(examples):
             examples["target"],
             max_length=128,
             truncation=True,
-            padding="max_length"
+            #padding="max_length"
         )
     
     model_inputs["labels"] = labels["input_ids"]
@@ -136,18 +182,35 @@ tokenized_dataset = dataset.map(
 )
 
 # 5. Training arguments
+batch_size = 8
+gradient_accumulation_steps = 1
+effective_batch_size = gradient_accumulation_steps*batch_size
+lr_multiplier = sqrt(effective_batch_size)
+learning_rate = (2.5e-5)*lr_multiplier
+num_epochs = 3#int(3*lr_multiplier/2)
+total_steps = (num_epochs*dataset_cap)/effective_batch_size
+warmup_steps = int(warmup_percent*total_steps)
+save_steps = int(total_steps/num_saves)
+eval_steps = int(total_steps/10)
+logging_steps = int(total_steps*0.05)
+
+print(f"""Training with {num_epochs} epochs, 
+    warmup steps of {warmup_steps}, 
+    saving every {save_steps} steps, 
+    with learning_rate {learning_rate} 
+    and logging every {logging_steps} steps....""")
 training_args = Seq2SeqTrainingArguments(
-    output_dir="./mbart-lora-finetuned",
-    num_train_epochs=3,
-    per_device_train_batch_size=4,
-    #per_device_eval_batch_size=4,
-    gradient_accumulation_steps=1,
-    learning_rate=1e-4,
-    warmup_steps=500,
+    output_dir=f"./mbart-lora-{adapter_name}-{source_lang}-{target_lang}",
+    num_train_epochs=num_epochs,
+    per_device_train_batch_size=batch_size,
+    gradient_accumulation_steps=gradient_accumulation_steps,
+    learning_rate=learning_rate,
+    warmup_steps=warmup_steps,
     weight_decay=0.01,
-    logging_steps=100,
-    eval_steps=500,
-    save_steps=1000,
+    logging_steps=logging_steps,
+    eval_steps=eval_steps,
+    save_steps=save_steps,
+    save_safetensors=False,
     save_total_limit=3,
     predict_with_generate=True,
     push_to_hub=False,
@@ -164,7 +227,7 @@ trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
     train_dataset=tokenized_dataset["train"],
-    #eval_dataset=tokenized_dataset["validation"],
+    eval_dataset=tokenized_dataset["validation"],
     tokenizer=tokenizer,
     data_collator=data_collator,
 )
@@ -173,5 +236,5 @@ trainer = Seq2SeqTrainer(
 trainer.train()
 
 # 9. Save the LoRA adapters
-model.save_pretrained(f"./mbart-{adapter_name}-{source_lang}-{target_lang}-adapter")
-tokenizer.save_pretrained(f"./mbart-{adapter_name}-{source_lang}-{target_lang}-adapter")
+model.save_pretrained(f"./mbart-lora-{adapter_name}-{source_lang}-{target_lang}")
+tokenizer.save_pretrained(f"./mbart-lora-{adapter_name}-{source_lang}-{target_lang}")
