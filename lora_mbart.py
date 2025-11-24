@@ -1,5 +1,5 @@
 adapter_name = "WikiMatrix"
-LOCATION = f"/Users/foopanda/en-hi.txt/{adapter_name}.en-hi"
+LOCATION = f"../Zip_training_data/en-hi.txt/{adapter_name}.en-hi"
 SRC_FILE = f"{LOCATION}.en"
 TGT_FILE =f"{LOCATION}.hi"
 source_lang = "en_XX"
@@ -67,19 +67,7 @@ def create_dataset(source_file, target_file):
 
 
 def get_lora_config(decoder_finetune, grad_based_layer):
-    if (grad_based_layer):
-        lora_layers = ["model.decoder.layers.0.self_attn.v_proj", "model.decoder.layers.0.self_attn.v_proj", "model.decoder.layers.0.self_attn.out_proj", "model.decoder.layers.0.self_attn.out_proj", "model.decoder.layers.11.self_attn.k_proj", "model.decoder.layers.11.self_attn.k_proj", "model.decoder.layers.2.self_attn.v_proj", "model.decoder.layers.2.self_attn.v_proj", "model.decoder.layers.5.self_attn.k_proj", "model.decoder.layers.5.self_attn.k_proj", "model.decoder.layers.4.self_attn.v_proj", "model.decoder.layers.4.self_attn.v_proj", "model.decoder.layers.1.self_attn.v_proj", "model.decoder.layers.1.self_attn.v_proj", "model.decoder.layers.0.encoder_attn.v_proj", "model.decoder.layers.0.encoder_attn.v_proj", "model.decoder.layers.5.self_attn.v_proj", "model.decoder.layers.5.self_attn.v_proj", "model.decoder.layers.5.self_attn.q_proj", "model.decoder.layers.5.self_attn.q_proj", "model.decoder.layers.11.fc1", "model.decoder.layers.11.fc1", "model.decoder.layers.3.self_attn.v_proj", "model.decoder.layers.3.self_attn.v_proj", "model.decoder.layers.0.encoder_attn.out_proj", "model.decoder.layers.0.encoder_attn.out_proj", "model.decoder.layers.1.self_attn.out_proj", "model.decoder.layers.1.self_attn.out_proj", "model.decoder.layers.2.self_attn.k_proj", "model.decoder.layers.2.self_attn.k_proj", "model.decoder.layers.0.fc2", "model.decoder.layers.0.fc2", "model.decoder.layers.11.self_attn.v_proj", "model.decoder.layers.11.self_attn.v_proj", "model.decoder.layers.2.self_attn.out_proj", "model.decoder.layers.2.self_attn.out_proj", "model.decoder.layers.6.self_attn.v_proj", "model.decoder.layers.6.self_attn.v_proj", "model.decoder.layers.2.self_attn.q_proj", "model.decoder.layers.2.self_attn.q_proj", "model.decoder.layers.0.encoder_attn.q_proj", "model.decoder.layers.0.encoder_attn.q_proj", "model.decoder.layers.1.encoder_attn.v_proj", "model.decoder.layers.1.encoder_attn.v_proj", "model.decoder.layers.5.self_attn.out_proj", "model.decoder.layers.5.self_attn.out_proj", "model.decoder.layers.7.self_attn.v_proj", "model.decoder.layers.7.self_attn.v_proj", "model.decoder.layers.7.self_attn.k_proj", "model.decoder.layers.7.self_attn.k_proj", "model.decoder.layers.4.self_attn.out_proj", "model.decoder.layers.4.self_attn.out_proj", "model.decoder.layers.0.self_attn.q_proj", "model.decoder.layers.0.self_attn.q_proj", "model.decoder.layers.8.self_attn.k_proj", "model.decoder.layers.8.self_attn.k_proj", "model.decoder.layers.8.self_attn.q_proj", "model.decoder.layers.8.self_attn.q_proj", "model.decoder.layers.9.self_attn.v_proj", "model.decoder.layers.9.self_attn.v_proj", "model.decoder.layers.3.self_attn.q_proj", "model.decoder.layers.3.self_attn.q_proj", "model.decoder.layers.2.encoder_attn.v_proj", "model.decoder.layers.2.encoder_attn.v_proj", "model.decoder.layers.0.fc1", "model.decoder.layers.0.fc1", "model.decoder.layers.3.self_attn.k_proj", "model.decoder.layers.3.self_attn.k_proj", "model.decoder.layers.7.self_attn.q_proj", "model.decoder.layers.7.self_attn.q_proj", "model.decoder.layers.1.fc2", "model.decoder.layers.1.fc2", "model.decoder.layers.8.self_attn.v_proj", "model.decoder.layers.8.self_attn.v_proj", "model.decoder.layers.9.self_attn.out_proj", "model.decoder.layers.9.self_attn.out_proj", "model.decoder.layers.1.encoder_attn.q_proj", "model.decoder.layers.1.encoder_attn.q_proj", "model.decoder.layers.0.encoder_attn.k_proj", "model.decoder.layers.0.encoder_attn.k_proj", "model.decoder.layers.1.encoder_attn.out_proj", "model.decoder.layers.1.encoder_attn.out_proj", "model.decoder.layers.3.encoder_attn.v_proj", "model.decoder.layers.3.encoder_attn.v_proj", "model.decoder.layers.0.self_attn.k_proj", "model.decoder.layers.0.self_attn.k_proj", "model.decoder.layers.11.fc2", "model.decoder.layers.11.fc2", "model.decoder.layers.6.self_attn.out_proj", "model.decoder.layers.6.self_attn.out_proj", "model.decoder.layers.6.self_attn.k_proj", "model.decoder.layers.6.self_attn.k_proj", "model.decoder.layers.3.self_attn.out_proj", "model.decoder.layers.3.self_attn.out_proj", "model.decoder.layers.4.self_attn.q_proj", "model.decoder.layers.4.self_attn.q_proj", "model.decoder.layers.1.fc1", "model.decoder.layers.1.fc1", "model.decoder.layers.4.encoder_attn.v_proj", "model.decoder.layers.4.encoder_attn.v_proj", "model.decoder.layers.11.self_attn.out_proj", "model.decoder.layers.11.self_attn.out_proj", "model.decoder.layers.6.self_attn.q_proj", "model.decoder.layers.6.self_attn.q_proj", "model.decoder.layers.7.self_attn.out_proj", "model.decoder.layers.7.self_attn.out_proj", "model.decoder.layers.1.self_attn.k_proj", "model.decoder.layers.1.self_attn.k_proj", "model.decoder.layers.4.fc1", "model.decoder.layers.4.fc1", "model.decoder.layers.2.fc2", "model.decoder.layers.2.fc2", "model.decoder.layers.3.fc2", "model.decoder.layers.3.fc2", "model.decoder.layers.10.self_attn.v_proj", "model.decoder.layers.10.self_attn.v_proj", "model.decoder.layers.10.self_attn.out_proj", "model.decoder.layers.10.self_attn.out_proj", "model.decoder.layers.4.fc2", "model.decoder.layers.4.fc2"]
-        return LoraConfig(
-            r=16,
-            lora_alpha=32,
-            target_modules=lora_layers,
-            #modules_to_save=["model.decoder.layers.11.self_attn_layer_norm", "model.decoder.layers.11.self_attn_layer_norm", "model.decoder.layers.0.final_layer_norm", "model.decoder.layers.0.final_layer_norm"],
-            lora_dropout=0.05,
-            bias="lora_only",
-            task_type=TaskType.SEQ_2_SEQ_LM
-        )
-    elif (decoder_finetune):
-        target_regex = [
+    target_regex = [
             # Decoder self-attention (target fluency)
             r"decoder\.layers\.\d+\.self_attn\.(q_proj|k_proj|v_proj|out_proj)",
             
@@ -87,19 +75,33 @@ def get_lora_config(decoder_finetune, grad_based_layer):
             r"decoder\.layers\.\d+\.encoder_attn\.(q_proj|k_proj|v_proj|out_proj)",
             r"decoder\.layers.*.(fc1|fc2)"
         ]
-        matched_module_name = []
-        import re
+    decode_modules = set()
+    grad_based_layers = {"model.decoder.layers.0.self_attn.v_proj", "model.decoder.layers.0.self_attn.v_proj", "model.decoder.layers.0.self_attn.out_proj", "model.decoder.layers.0.self_attn.out_proj", "model.decoder.layers.11.self_attn.k_proj", "model.decoder.layers.11.self_attn.k_proj", "model.decoder.layers.2.self_attn.v_proj", "model.decoder.layers.2.self_attn.v_proj", "model.decoder.layers.5.self_attn.k_proj", "model.decoder.layers.5.self_attn.k_proj", "model.decoder.layers.4.self_attn.v_proj", "model.decoder.layers.4.self_attn.v_proj", "model.decoder.layers.1.self_attn.v_proj", "model.decoder.layers.1.self_attn.v_proj", "model.decoder.layers.0.encoder_attn.v_proj", "model.decoder.layers.0.encoder_attn.v_proj", "model.decoder.layers.5.self_attn.v_proj", "model.decoder.layers.5.self_attn.v_proj", "model.decoder.layers.5.self_attn.q_proj", "model.decoder.layers.5.self_attn.q_proj", "model.decoder.layers.11.fc1", "model.decoder.layers.11.fc1", "model.decoder.layers.3.self_attn.v_proj", "model.decoder.layers.3.self_attn.v_proj", "model.decoder.layers.0.encoder_attn.out_proj", "model.decoder.layers.0.encoder_attn.out_proj", "model.decoder.layers.1.self_attn.out_proj", "model.decoder.layers.1.self_attn.out_proj", "model.decoder.layers.2.self_attn.k_proj", "model.decoder.layers.2.self_attn.k_proj", "model.decoder.layers.0.fc2", "model.decoder.layers.0.fc2", "model.decoder.layers.11.self_attn.v_proj", "model.decoder.layers.11.self_attn.v_proj", "model.decoder.layers.2.self_attn.out_proj", "model.decoder.layers.2.self_attn.out_proj", "model.decoder.layers.6.self_attn.v_proj", "model.decoder.layers.6.self_attn.v_proj", "model.decoder.layers.2.self_attn.q_proj", "model.decoder.layers.2.self_attn.q_proj", "model.decoder.layers.0.encoder_attn.q_proj", "model.decoder.layers.0.encoder_attn.q_proj", "model.decoder.layers.1.encoder_attn.v_proj", "model.decoder.layers.1.encoder_attn.v_proj", "model.decoder.layers.5.self_attn.out_proj", "model.decoder.layers.5.self_attn.out_proj", "model.decoder.layers.7.self_attn.v_proj", "model.decoder.layers.7.self_attn.v_proj", "model.decoder.layers.7.self_attn.k_proj", "model.decoder.layers.7.self_attn.k_proj", "model.decoder.layers.4.self_attn.out_proj", "model.decoder.layers.4.self_attn.out_proj", "model.decoder.layers.0.self_attn.q_proj", "model.decoder.layers.0.self_attn.q_proj", "model.decoder.layers.8.self_attn.k_proj", "model.decoder.layers.8.self_attn.k_proj", "model.decoder.layers.8.self_attn.q_proj", "model.decoder.layers.8.self_attn.q_proj", "model.decoder.layers.9.self_attn.v_proj", "model.decoder.layers.9.self_attn.v_proj", "model.decoder.layers.3.self_attn.q_proj", "model.decoder.layers.3.self_attn.q_proj", "model.decoder.layers.2.encoder_attn.v_proj", "model.decoder.layers.2.encoder_attn.v_proj", "model.decoder.layers.0.fc1", "model.decoder.layers.0.fc1", "model.decoder.layers.3.self_attn.k_proj", "model.decoder.layers.3.self_attn.k_proj", "model.decoder.layers.7.self_attn.q_proj", "model.decoder.layers.7.self_attn.q_proj", "model.decoder.layers.1.fc2", "model.decoder.layers.1.fc2", "model.decoder.layers.8.self_attn.v_proj", "model.decoder.layers.8.self_attn.v_proj", "model.decoder.layers.9.self_attn.out_proj", "model.decoder.layers.9.self_attn.out_proj", "model.decoder.layers.1.encoder_attn.q_proj", "model.decoder.layers.1.encoder_attn.q_proj", "model.decoder.layers.0.encoder_attn.k_proj", "model.decoder.layers.0.encoder_attn.k_proj", "model.decoder.layers.1.encoder_attn.out_proj", "model.decoder.layers.1.encoder_attn.out_proj", "model.decoder.layers.3.encoder_attn.v_proj", "model.decoder.layers.3.encoder_attn.v_proj", "model.decoder.layers.0.self_attn.k_proj", "model.decoder.layers.0.self_attn.k_proj", "model.decoder.layers.11.fc2", "model.decoder.layers.11.fc2", "model.decoder.layers.6.self_attn.out_proj", "model.decoder.layers.6.self_attn.out_proj", "model.decoder.layers.6.self_attn.k_proj", "model.decoder.layers.6.self_attn.k_proj", "model.decoder.layers.3.self_attn.out_proj", "model.decoder.layers.3.self_attn.out_proj", "model.decoder.layers.4.self_attn.q_proj", "model.decoder.layers.4.self_attn.q_proj", "model.decoder.layers.1.fc1", "model.decoder.layers.1.fc1", "model.decoder.layers.4.encoder_attn.v_proj", "model.decoder.layers.4.encoder_attn.v_proj", "model.decoder.layers.11.self_attn.out_proj", "model.decoder.layers.11.self_attn.out_proj", "model.decoder.layers.6.self_attn.q_proj", "model.decoder.layers.6.self_attn.q_proj", "model.decoder.layers.7.self_attn.out_proj", "model.decoder.layers.7.self_attn.out_proj", "model.decoder.layers.1.self_attn.k_proj", "model.decoder.layers.1.self_attn.k_proj", "model.decoder.layers.4.fc1", "model.decoder.layers.4.fc1", "model.decoder.layers.2.fc2", "model.decoder.layers.2.fc2", "model.decoder.layers.3.fc2", "model.decoder.layers.3.fc2", "model.decoder.layers.10.self_attn.v_proj", "model.decoder.layers.10.self_attn.v_proj", "model.decoder.layers.10.self_attn.out_proj", "model.decoder.layers.10.self_attn.out_proj", "model.decoder.layers.4.fc2", "model.decoder.layers.4.fc2"}
+    import re
 
-        for name, module in base_model.named_modules():
-            for pattern in target_regex:
-                if re.search(pattern, name):
-                    print(name)
-                    matched_module_name.append(name)
-                    break
+    for name, module in base_model.named_modules():
+        for pattern in target_regex:
+            if re.search(pattern, name):
+                print(name)
+                decode_modules.add(name)
+                break
+
+    print(f"layers dropped for grad based layer: {decode_modules-grad_based_layers}")
+    print(f"non decoder layers picked up based on grad: {grad_based_layers-decode_modules}")
+    if (grad_based_layer):
         return LoraConfig(
             r=16,
             lora_alpha=32,
-            target_modules=matched_module_name,
+            target_modules=list(grad_based_layers),
+            lora_dropout=0.05,
+            bias="all",
+            task_type=TaskType.SEQ_2_SEQ_LM
+        )
+    elif (decoder_finetune):
+        return LoraConfig(
+            r=16,
+            lora_alpha=32,
+            target_modules=list(decode_modules),
             lora_dropout=0.05,
             bias="none",
             task_type=TaskType.SEQ_2_SEQ_LM
@@ -120,7 +122,7 @@ def get_fresh_tunable_model():
     # 1. Load model and tokenizer
     tokenizer = MBart50TokenizerFast.from_pretrained(model_name)
 
-    lora_config = get_lora_config(True, True)
+    lora_config = get_lora_config(True, False)
 
     # 3. Apply LoRA to the model
     model = get_peft_model(base_model, lora_config)
@@ -188,17 +190,17 @@ tokenized_dataset = dataset.map(
 #         print(f"Unfrozen: {name}")
 
 # 5. Training arguments
-batch_size = 8
+batch_size = 4
 gradient_accumulation_steps = 1
 effective_batch_size = gradient_accumulation_steps*batch_size
 lr_multiplier = sqrt(effective_batch_size)
-learning_rate = (2.5e-5)*lr_multiplier
+learning_rate = (5e-5)*lr_multiplier
 num_epochs = 3#int(3*lr_multiplier/2)
 total_steps = (num_epochs*dataset_cap)/effective_batch_size
 warmup_steps = int(warmup_percent*total_steps)
 save_steps = int(total_steps/num_saves)
 eval_steps = int(total_steps/10)
-logging_steps = 100#int(total_steps*0.05)
+logging_steps = 100
 
 print(f"""Training with {num_epochs} epochs, 
     warmup steps of {warmup_steps}, 
@@ -215,11 +217,12 @@ training_args = Seq2SeqTrainingArguments(
     weight_decay=0.01,
     logging_steps=logging_steps,
     eval_steps=eval_steps,
+    eval_strategy="steps",
     save_steps=save_steps,
     save_safetensors=False,
     save_total_limit=3,
     predict_with_generate=True,
-    push_to_hub=False,
+    push_to_hub=False
 )
 
 # 6. Data collator

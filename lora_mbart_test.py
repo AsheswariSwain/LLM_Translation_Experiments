@@ -1,7 +1,7 @@
 # ========== File Paths ========== #
 source_datatset = "WikiMatrix"
 target_dataset = "WikiMatrix"
-LOCATION = f"/Users/foopanda/en-hi.txt/{target_dataset}.en-hi"
+LOCATION = f"../Zip_training_data/en-hi.txt/{target_dataset}.en-hi"
 checkpoint = None#"checkpoint-2000"
 SRC_FILE = f"{LOCATION}.en"
 TGT_FILE =f"{LOCATION}.hi"
@@ -58,7 +58,7 @@ def get_lora_model(model_name, adapter):
 
 import time 
 def translate_and_evaluate(model, tokenizer, src_sentences, refs, name):
-    OUT_FILE = f"/Users/foopanda/predictions_{name}.hi"
+    OUT_FILE = f"../Zip_training_data/predictions_{name}.hi"
     preds = []
     batch_size = 8
     print(f"Translating using {name}...")
